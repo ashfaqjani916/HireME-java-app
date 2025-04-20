@@ -1,14 +1,22 @@
 # HireME Internship Reminder
 
-A Java AWT application that helps users manage internship opportunities by sending reminder emails before deadlines. Users can create groups with friends to share internships, and the platform ensures duplicate opportunities are filtered out to prevent multiple reminder emails for the same internship.
+A Java AWT application that helps users manage and share internship opportunities. HireME features multi-user functionality, group sharing, and persistent storage using PostgreSQL.
 
 ## Features
 
-- Track internship opportunities with details such as company, position, description, application deadline, and URL
-- Receive email reminders 3 days before application deadlines
-- Create groups with friends to share interesting internship opportunities
-- Automatic deduplication of internship opportunities to prevent multiple reminder emails
-- Simple, intuitive GUI interface
+- **User Authentication**: Login and registration system for multiple users
+- **Internship Management**: Add, view, and remove internship opportunities
+- **Groups**: Create and join groups with other users
+- **Sharing Functionality**: Share internships with group members
+- **Modern UI**: Clean interface with intuitive navigation
+- **PostgreSQL Integration**: Persistent data storage using Docker
+
+## Technical Architecture
+
+- **Frontend**: Java AWT for UI components
+- **Backend**: Java application logic with service layer
+- **Database**: PostgreSQL (Docker container)
+- **Data Models**: User, Group, Internship
 
 ## Getting Started
 
@@ -16,17 +24,26 @@ A Java AWT application that helps users manage internship opportunities by sendi
 
 - Java 11 or higher
 - Maven for dependency management
+- Docker for PostgreSQL database
 
-### Configuration
+### Database Setup
 
-Before running the application, make sure to update the email credentials in `EmailService.java`:
+1. Start the PostgreSQL container:
 
-```java
-private static final String EMAIL_USERNAME = "your-email@gmail.com";
-private static final String EMAIL_PASSWORD = "your-app-password";
-```
+   ```
+   docker run -d --name hireme_postgres \
+     -e POSTGRES_DB=hireme_db \
+     -e POSTGRES_USER=hireme_user \
+     -e POSTGRES_PASSWORD=hireme_password \
+     -p 5432:5432 postgres:14
+   ```
 
-Note: If using Gmail, you'll need to generate an App Password.
+2. Database connection details:
+   - **Host**: localhost
+   - **Port**: 5432
+   - **Database**: hireme_db
+   - **Username**: hireme_user
+   - **Password**: hireme_password
 
 ### Running the Application
 
@@ -38,22 +55,152 @@ Note: If using Gmail, you'll need to generate an App Password.
    ```
 4. Run the application:
    ```
-   java -jar target/internship-reminder-1.0-SNAPSHOT.jar
+   mvn exec:java -Dexec.mainClass="com.hireme.internship.InternshipReminderApp"
    ```
 
-## Usage
+## Multi-User Functionality
 
-1. **Add Internships**: Click on "Add Internship" in the "My Internships" tab to add new internship opportunities
-2. **Create Groups**: Go to the "Groups" tab and click "Create Group" to create a new group
-3. **Share Internships**: Select a group and an internship, then click "Share Internship" to share with your group
-4. **Receive Reminders**: The application will automatically send email reminders 3 days before internship deadlines
+HireME now supports multiple users with shared content:
 
-## Note
+- **Login/Register**: Users can create accounts or log in to existing ones
+- **Group Management**: Create groups and invite other users
+- **Shared Internships**: View internships shared by other users in your groups
+- **Save Shared Content**: Save shared internships to your personal list
 
-This is a simple application intended for educational purposes. In a production environment, you would want to:
+## Shell Script Utilities
 
-- Add proper user authentication
-- Store data in a database
-- Add data validation and error handling
-- Improve the UI/UX
-- Add testing
+Add these shell functions to your `.bashrc` for easy application management:
+
+```bash
+# HireME Internship App Helper Functions
+function hireme() {
+  # Change to the app directory
+  cd ~/Desktop/HireME_java_app
+
+  # Make sure the PostgreSQL container is running
+  if ! docker ps | grep -q hireme_postgres; then
+    echo "Starting PostgreSQL container..."
+    if docker ps -a | grep -q hireme_postgres; then
+      docker start hireme_postgres
+    else
+      docker run -d --name hireme_postgres \
+        -e POSTGRES_DB=hireme_db \
+        -e POSTGRES_USER=hireme_user \
+        -e POSTGRES_PASSWORD=hireme_password \
+        -p 5432:5432 postgres:14
+    fi
+    # Wait for PostgreSQL to start
+    sleep 3
+  fi
+
+  # Run the application
+  mvn exec:java -Dexec.mainClass="com.hireme.internship.InternshipReminderApp"
+}
+
+function hireme_multi() {
+  local instances=${1:-2}
+
+  # Start PostgreSQL if not running
+  if ! docker ps | grep -q hireme_postgres; then
+    echo "Starting PostgreSQL container..."
+    if docker ps -a | grep -q hireme_postgres; then
+      docker start hireme_postgres
+    else
+      docker run -d --name hireme_postgres \
+        -e POSTGRES_DB=hireme_db \
+        -e POSTGRES_USER=hireme_user \
+        -e POSTGRES_PASSWORD=hireme_password \
+        -p 5432:5432 postgres:14
+    fi
+    # Wait for PostgreSQL to start
+    sleep 3
+  fi
+
+  # Change to app directory
+  cd ~/Desktop/HireME_java_app
+
+  # Compile once
+  mvn clean compile
+
+  # Launch multiple instances
+  for ((i=1; i<=$instances; i++)); do
+    echo "Starting HireME instance $i..."
+    mvn exec:java -Dexec.mainClass="com.hireme.internship.InternshipReminderApp" &
+    # Small delay to prevent UI overlap
+    sleep 2
+  done
+
+  echo "$instances instances of HireME started"
+}
+
+function hireme_demo() {
+  echo "Starting HireME multi-user demo..."
+  echo "This will launch 3 instances of the application"
+  echo "You can login with demo accounts:"
+  echo "  - john@example.com / password1"
+  echo "  - jane@example.com / password2"
+  echo "  - bob@example.com / password3"
+  echo ""
+  hireme_multi 3
+}
+
+function hireme_db() {
+  echo "PostgreSQL Connection Details:"
+  echo "  Host: localhost"
+  echo "  Port: 5432"
+  echo "  Database: hireme_db"
+  echo "  Username: hireme_user"
+  echo "  Password: hireme_password"
+
+  # Connect to PostgreSQL in container
+  docker exec -it hireme_postgres psql -U hireme_user -d hireme_db
+}
+```
+
+## Usage Examples
+
+After adding the functions to your `.bashrc`:
+
+1. **Run a single instance**:
+
+   ```
+   hireme
+   ```
+
+2. **Run multiple instances**:
+
+   ```
+   hireme_multi 3
+   ```
+
+3. **Run the demo with 3 instances and login info**:
+
+   ```
+   hireme_demo
+   ```
+
+4. **Connect to the database**:
+   ```
+   hireme_db
+   ```
+
+## Demo Accounts
+
+The application comes with three demo accounts:
+
+- john@example.com / password1
+- jane@example.com / password2
+- bob@example.com / password3
+
+## Database Schema
+
+- **users**: User accounts and authentication
+- **shared_internships**: Internships shared within groups
+- **groups**: Group management and membership
+
+## Future Enhancements
+
+- Email notifications for application deadlines
+- Advanced search and filtering
+- Application status tracking
+- Mobile application version
